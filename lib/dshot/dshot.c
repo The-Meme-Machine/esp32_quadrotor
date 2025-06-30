@@ -35,16 +35,8 @@ rmt_transmit_config_t tx_config = {
 //     return true; // Return true to yield from ISR if needed
 // }
 
-// motor_channels setup_rmt_channels(gpio_num_t pins[NUM_MOTORS])
-
 void setup_rmt_channels(gpio_num_t pins[NUM_MOTORS])
 {
-    // // Create array of RMT channels, one for each pin
-    // static rmt_channel_handle_t rmt_channels[NUM_MOTORS] = {};
-
-    // // Create array of RMT encoders
-    // static rmt_encoder_handle_t copy_encoders[NUM_MOTORS] = {};
-
     // Loop through each pin and init the RMT channels
     for (uint8_t i = 0; i < NUM_MOTORS; i++)
     {
@@ -55,7 +47,7 @@ void setup_rmt_channels(gpio_num_t pins[NUM_MOTORS])
             .clk_src = RMT_CLK_SRC,
             .resolution_hz = RMT_RESOLUTION_HZ,
             .mem_block_symbols = 48,
-            .trans_queue_depth = 1,
+            .trans_queue_depth = 3,
             .flags.invert_out = false,
             .flags.with_dma = false,
             // .flags.with_dma = true, // Only 1 TX channel supports DMA
@@ -79,63 +71,55 @@ void setup_rmt_channels(gpio_num_t pins[NUM_MOTORS])
     ESP_ERROR_CHECK(rmt_new_sync_manager(&synchro_config, &synchro));
 #endif
 
-    // // Return the RMT channels
-    // motor_channels channels = {
-    //     .rmt_channels = &rmt_channels[0],
-    //     .synchro = &synchro,
-    //     .copy_encoders = &copy_encoders[0],
-    // };
-
     ESP_LOGI(TAG, "All TX channels configured, synchronization set.");
-
-    // return channels;
 };
 
 // RMT_CALLBACK_ATTR
-// void send_dshot_frame(uint16_t throttle[NUM_MOTORS], bool telemetry[NUM_MOTORS], motor_channels channels)
 void RMT_CALLBACK_ATTR send_dshot_frame(uint16_t (*throttle)[NUM_MOTORS], bool telemetry)
 {
-    // Assemble DSHOT frame
+    // Create DSHOT frame
     dshot_packet frame[NUM_MOTORS] = {};
-    for (int i = 0; i < NUM_MOTORS; i++)
-    {
-        frame[i].throttle_value = (*throttle)[i];
-        // frame[i].throttle_value = local_throttle[i];
-        frame[i].telemetry_request = telemetry;
-
-        frame[i].raw = (frame[i].throttle_value << 1) | frame[i].telemetry_request;
-        // Calculate checksum
-        frame[i].checksum = (frame[i].raw ^ (frame[i].raw >> 4) ^ (frame[i].raw >> 8)) & 0x0F;
-        // Add checksum to end of packet
-        frame[i].raw = (frame[i].raw << 4) | frame[i].checksum;
-    };
 
     // Encode DSHOT command
     rmt_symbol_word_t dshot_tx_items[NUM_MOTORS][16] = {}; // 17 bits with the pause
 
     // Iterate over each motor to encode and send command
-    // Commands will not be sent until all RMT channels are ready to transmit (due to sync manager)
-    for (uint8_t i = 0; i < NUM_MOTORS; i++)
+    for (uint8_t motor = 0; motor < NUM_MOTORS; motor++)
     {
+        // Assemble DSHOT frame
+        // frame[motor].throttle_value = (*throttle)[motor];
+        // frame[motor].telemetry_request = telemetry;
+
+        // frame[motor].raw = (frame[motor].throttle_value << 1) | frame[motor].telemetry_request;
+        // // Calculate checksum
+        // frame[motor].checksum = (frame[motor].raw ^ (frame[motor].raw >> 4) ^ (frame[motor].raw >> 8)) & 0x0F;
+        // // Add checksum to end of packet
+        // frame[motor].raw = (frame[motor].raw << 4) | frame[motor].checksum;
+
+        // Save 5us by assembling without struct
+        uint16_t packet = ((*throttle)[motor] << 1) | telemetry;
+        packet = packet << 4 | ((packet ^ (packet >> 4) ^ (packet >> 8)) & 0x0F);
+
         // Iterate over each bit in the DSHOT command (16 bits)
-        for (int8_t j = 15; j >= 0; j--)
+        for (uint8_t i = 0; i < DSHOT_FRAME_SIZE; i++)
         {
-            uint16_t bit = (frame[i].raw >> j) & 1;
+            uint8_t bit = (packet >> i) & 1;
+            uint8_t index = DSHOT_FRAME_SIZE - 1 - i;
 
             if (bit == 1)
             {
                 // set to one
-                dshot_tx_items[i][j].duration0 = DSHOT_BIT_1_HIGH / DSHOT_TICK_TIME;
-                dshot_tx_items[i][j].duration1 = DSHOT_BIT_1_LOW / DSHOT_TICK_TIME;
+                dshot_tx_items[motor][index].duration0 = DSHOT_BIT_1_HIGH / DSHOT_TICK_TIME;
+                dshot_tx_items[motor][index].duration1 = DSHOT_BIT_1_LOW / DSHOT_TICK_TIME;
             }
             else
             {
                 // set to zero
-                dshot_tx_items[i][j].duration0 = DSHOT_BIT_0_HIGH / DSHOT_TICK_TIME;
-                dshot_tx_items[i][j].duration1 = DSHOT_BIT_0_LOW / DSHOT_TICK_TIME;
+                dshot_tx_items[motor][index].duration0 = DSHOT_BIT_0_HIGH / DSHOT_TICK_TIME;
+                dshot_tx_items[motor][index].duration1 = DSHOT_BIT_0_LOW / DSHOT_TICK_TIME;
             }
-            dshot_tx_items[i][j].level0 = 1;
-            dshot_tx_items[i][j].level1 = 0;
+            dshot_tx_items[motor][index].level0 = 1;
+            dshot_tx_items[motor][index].level1 = 0;
         };
         // Set pause bit (bit 17) to zero
         // dshot_tx_items[i][16].level0 = 0;
@@ -150,10 +134,10 @@ void RMT_CALLBACK_ATTR send_dshot_frame(uint16_t (*throttle)[NUM_MOTORS], bool t
         // ESP_ERROR_CHECK(rmt_disable(rmt_channels[i]));
         // ESP_ERROR_CHECK(rmt_enable(rmt_channels[i]));
 
-        rmt_transmit(rmt_channels[i],
-                     copy_encoders[i],
-                     &dshot_tx_items,
-                     sizeof(rmt_symbol_word_t) * 16, // 17 bits sent  (when including pause)
+        rmt_transmit(rmt_channels[motor],
+                     copy_encoders[motor],
+                     &dshot_tx_items[motor],
+                     sizeof(rmt_symbol_word_t) * DSHOT_FRAME_SIZE, // 17 bits sent  (when including pause)
                      &tx_config);
     };
 
@@ -170,28 +154,3 @@ void RMT_CALLBACK_ATTR send_dshot_frame(uint16_t (*throttle)[NUM_MOTORS], bool t
     //          frame[3].throttle_value,
     //          frame[0].raw);
 };
-
-// RMT_CALLBACK_ATTR
-// dshot_packet *assemble_dshot_frames(uint16_t desired_throttle[NUM_MOTORS], bool telemetry[NUM_MOTORS])
-// {
-//     static dshot_packet frame[NUM_MOTORS] = {};
-
-//     for (int i = 0; i < NUM_MOTORS; i++)
-//     {
-//         frame[i].throttle_value = desired_throttle[i];
-//         frame[i].telemetry_request = telemetry[i];
-
-//         frame[i].raw = (desired_throttle[i] << 1) | telemetry[i];
-//         // Calculate checksum
-//         frame[i].checksum = (frame[i].raw ^ (frame[i].raw >> 4) ^ (frame[i].raw >> 8)) & 0x0F;
-//         // Add checksum to end of packet
-//         frame[i].raw = (frame[i].raw << 4) | frame[i].checksum;
-//     };
-
-//     return &frame;
-// };
-
-// RMT_CALLBACK_ATTR
-// rmt_symbol_word_t encode_dshot(dshot_packet packet) {
-
-// };
