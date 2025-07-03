@@ -7,7 +7,7 @@
 #define RMT_CALLBACK_ATTR
 #endif
 
-static const char *TAG = "RMT";
+static const char *TAG = "RMT-DSHOT";
 
 // Create array of RMT channels, one for each pin
 rmt_channel_handle_t rmt_channels[NUM_MOTORS] = {};
@@ -53,7 +53,7 @@ void setup_rmt_channels(gpio_num_t pins[NUM_MOTORS])
             // .flags.with_dma = true, // Only 1 TX channel supports DMA
         };
 
-        ESP_LOGI(TAG, "Setting up RMT TX channel %d.", i);
+        ESP_LOGI(TAG, "Setting up TX channel %d...", i + 1);
 
         ESP_ERROR_CHECK(rmt_new_tx_channel(&config, &rmt_channels[i]));
         ESP_ERROR_CHECK(rmt_enable(rmt_channels[i]));
@@ -71,14 +71,14 @@ void setup_rmt_channels(gpio_num_t pins[NUM_MOTORS])
     ESP_ERROR_CHECK(rmt_new_sync_manager(&synchro_config, &synchro));
 #endif
 
-    ESP_LOGI(TAG, "All TX channels configured, synchronization set.");
+    ESP_LOGI(TAG, "All TX channels configured.");
 };
 
 // RMT_CALLBACK_ATTR
 void RMT_CALLBACK_ATTR send_dshot_frame(uint16_t (*throttle)[NUM_MOTORS], bool telemetry)
 {
     // Create DSHOT frame
-    dshot_packet frame[NUM_MOTORS] = {};
+    // dshot_packet frame[NUM_MOTORS] = {};
 
     // Encode DSHOT command
     rmt_symbol_word_t dshot_tx_items[NUM_MOTORS][16] = {}; // 17 bits with the pause

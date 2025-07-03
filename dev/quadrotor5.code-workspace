@@ -19,7 +19,13 @@
 			"tuple": "c",
 			"type_traits": "c",
 			"utility": "c",
-			"task.h": "c"
+			"task.h": "c",
+			"string.h": "c",
+			"rmt_tx.h": "c",
+			"esp_timer.h": "c",
+			"string": "c",
+			"string_view": "c",
+			"span": "c"
 		}
 	}
 }
