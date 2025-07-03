@@ -7,6 +7,7 @@
 #define RMT_RESOLUTION_HZ 40 * 1000 * 1000 // 40MHz resolution (25ns per tick)
 #define DSHOT_TICK_TIME 25                 // 25ns tick time
 #define DSHOT_THROTTLE_MIN 48              // Minimum value of throttle
+#define DSHOT_THROTTLE_MAX 2047            // Max value of throttle
 #define NUM_MOTORS 4
 #define RMT_SYNC false      // DO NOT USE RMT SYNC MANAGER AS IT ADDS START AND END PULSE
 #define DSHOT_FRAME_SIZE 16 // 16 bit frame size
