@@ -40,7 +40,7 @@ typedef struct
     int16_t xl_y;
     int16_t xl_z;
 
-} IMU_data;
+} IMU_packet;
 
 typedef struct
 {
@@ -49,9 +49,9 @@ typedef struct
     int16_t m_y;
     int16_t m_z;
 
-} mag_data;
+} mag_packet;
 
 extern void setup_imu_mag(gpio_num_t sda, gpio_num_t slc);
 extern void write_to_buf(i2c_master_dev_handle_t dev, uint8_t addr, uint8_t val);
-extern IMU_data read_IMU();
-extern mag_data read_mag();
+extern IMU_packet *read_IMU();
+extern mag_packet *read_mag();

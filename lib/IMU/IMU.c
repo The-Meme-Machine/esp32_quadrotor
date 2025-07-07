@@ -1,6 +1,6 @@
 #include <IMU.h>
 
-static const char *TAG = "I2C-IMU";
+static const char *TAG = "I2C";
 
 // Flag for preventing i2c access conflicts
 volatile bool i2c_busy_flag = false;
@@ -16,16 +16,19 @@ i2c_device_config_t IMU_cfg = {
     // .scl_speed_hz = 100000, // 100kHz standard mode
     // .scl_speed_hz = 400000, // 400kHz fast mode
     .scl_speed_hz = 1000000, // 1000kHz fast+ mode
-    // Use fast+ if possible due to the enormous benefit in loop speed
+    // Use fast+ if possible due to the enormous benefit to loop speed
 };
 i2c_device_config_t mag_cfg = {
     .dev_addr_length = I2C_ADDR_BIT_LEN_7,
     .device_address = MAG_ADDR,
     // .scl_speed_hz = 100000, // 100kHz standard mode
-    .scl_speed_hz = 400000, // 400kHz fast mode
-    // .scl_speed_hz = 1000000, // 1000kHz fast+ mode
+    // .scl_speed_hz = 400000, // 400kHz fast mode
+    .scl_speed_hz = 1000000, // 1000kHz fast+ mode
 
 };
+
+IMU_packet IMU_data;
+mag_packet mag_data;
 
 void setup_imu_mag(gpio_num_t sda, gpio_num_t slc)
 {
@@ -75,7 +78,7 @@ void setup_imu_mag(gpio_num_t sda, gpio_num_t slc)
         ESP_ERROR_CHECK(err);
     }
 
-    // IMU SETUP
+    /* IMU SETUP */
 
     // COUNTER_BDR_REG1 ->
     // Enable pulsed data-ready mode
@@ -94,12 +97,14 @@ void setup_imu_mag(gpio_num_t sda, gpio_num_t slc)
     // Set linear acceleration to 4g limit (FS_XL)
     // Set output rate to 1.66kHz (ODR_XL)
     // first stage digital filtering
-    write_to_buf(IMU_handle, 0x10, 0b10001010); // 0b10001000 for no filtering
+    // write_to_buf(IMU_handle, 0x10, 0b10001010); // 0b10001000 for no filtering
+    write_to_buf(IMU_handle, 0x10, 0b01111010); // for 833Hz
 
     // CTRL2_G register ->
     // Set output rate to 1.66kHz
     // Set limit to 500dps
-    write_to_buf(IMU_handle, 0x11, 0b10000100);
+    // write_to_buf(IMU_handle, 0x11, 0b10000100);
+    write_to_buf(IMU_handle, 0x11, 0b01110100);
 
     // CTRL3_C register ->
     // Enable block data update
@@ -117,7 +122,7 @@ void setup_imu_mag(gpio_num_t sda, gpio_num_t slc)
 
     // TODO: Offset values for accel and gyro
 
-    // MAG SETUP
+    /* MAG SETUP */
 
     // TODO: Hard iron offset calibration here
 
@@ -129,6 +134,9 @@ void setup_imu_mag(gpio_num_t sda, gpio_num_t slc)
     // INT_CFG
     // Enable interrupt on INTM pin
     write_to_buf(mag_handle, 0x30, 0b00001001);
+
+    /* BAROMETER SETUP */
+    // WIP
 }
 
 void write_to_buf(i2c_master_dev_handle_t dev, uint8_t addr, uint8_t val)
@@ -163,9 +171,8 @@ int16_t read_twos_comp_buf(i2c_master_dev_handle_t dev, uint8_t addr)
     return out;
 }
 
-IMU_data read_IMU()
+IMU_packet *read_IMU()
 {
-    IMU_data data;
     if (!i2c_busy_flag)
     {
         // i2c_busy_flag = true;
@@ -176,26 +183,24 @@ IMU_data read_IMU()
 
         // i2c_busy_flag = false;
 
-        data.g_x = (int16_t)((out_buf[1] << 8) | out_buf[0]);
-        data.g_y = (int16_t)((out_buf[3] << 8) | out_buf[2]);
-        data.g_z = (int16_t)((out_buf[5] << 8) | out_buf[4]);
-        data.xl_x = (int16_t)((out_buf[7] << 8) | out_buf[6]);
-        data.xl_y = (int16_t)((out_buf[9] << 8) | out_buf[8]);
-        data.xl_z = (int16_t)((out_buf[11] << 8) | out_buf[10]);
+        IMU_data.g_x = (int16_t)((out_buf[1] << 8) | out_buf[0]);
+        IMU_data.g_y = (int16_t)((out_buf[3] << 8) | out_buf[2]);
+        IMU_data.g_z = (int16_t)((out_buf[5] << 8) | out_buf[4]);
+        IMU_data.xl_x = (int16_t)((out_buf[7] << 8) | out_buf[6]);
+        IMU_data.xl_y = (int16_t)((out_buf[9] << 8) | out_buf[8]);
+        IMU_data.xl_z = (int16_t)((out_buf[11] << 8) | out_buf[10]);
 
-        return data;
+        return &IMU_data;
     }
     else
     {
         // if i2c is busy, return stale data
-        return data;
+        return &IMU_data;
     }
 }
 
-mag_data read_mag()
+mag_packet *read_mag()
 {
-    static mag_data data;
-
     if (!i2c_busy_flag)
     {
         i2c_busy_flag = true;
@@ -206,16 +211,16 @@ mag_data read_mag()
 
         i2c_busy_flag = false;
 
-        data.m_x = (int16_t)((out_buf[1] << 8) | out_buf[0]);
-        data.m_y = (int16_t)((out_buf[3] << 8) | out_buf[2]);
-        data.m_z = (int16_t)((out_buf[5] << 8) | out_buf[4]);
+        mag_data.m_x = (int16_t)((out_buf[1] << 8) | out_buf[0]);
+        mag_data.m_y = (int16_t)((out_buf[3] << 8) | out_buf[2]);
+        mag_data.m_z = (int16_t)((out_buf[5] << 8) | out_buf[4]);
 
-        return data;
+        return &mag_data;
     }
     else
     {
         // if i2c is busy, return stale data
-        return data;
+        return &mag_data;
     }
 }
 

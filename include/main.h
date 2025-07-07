@@ -3,7 +3,7 @@
 #include <esp_timer.h>
 #include <esp_log.h>
 #include <driver/gpio.h>
-#include <esp_ipc.h>
+// #include <esp_ipc.h>
 #include <esp_dsp.h>
 #include <dshot.h>
 #include <ws2812.h>
@@ -35,3 +35,7 @@ typedef struct
 
 // Throttle values
 uint16_t throttles[NUM_MOTORS] = {DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN};
+
+// Flags // volatile
+static volatile bool imu_drdy_flag = false;    // IMU interrupt recieved if true
+static volatile bool motor_armed_flag = false; // Motors can spin if true

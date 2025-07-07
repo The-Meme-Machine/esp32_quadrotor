@@ -1,12 +1,5 @@
 #include <dshot.h>
 
-#define CONFIG_RMT_ISR_IRAM_SAFE 1
-#if CONFIG_RMT_ISR_IRAM_SAFE
-#define RMT_CALLBACK_ATTR IRAM_ATTR
-#else
-#define RMT_CALLBACK_ATTR
-#endif
-
 static const char *TAG = "RMT-DSHOT";
 
 // Create array of RMT channels, one for each pin
@@ -16,9 +9,9 @@ rmt_channel_handle_t rmt_channels[NUM_MOTORS] = {};
 rmt_encoder_handle_t copy_encoders[NUM_MOTORS] = {};
 
 // Create sync manager
-#if RMT_SYNC
-rmt_sync_manager_handle_t synchro = NULL;
-#endif
+// #if RMT_SYNC
+// rmt_sync_manager_handle_t synchro = NULL;
+// #endif
 
 // RMT TX config
 rmt_transmit_config_t tx_config = {
@@ -37,6 +30,8 @@ rmt_transmit_config_t tx_config = {
 
 void setup_rmt_channels(gpio_num_t pins[NUM_MOTORS])
 {
+    ESP_LOGI(TAG, "Setting up RMT peripheral...");
+
     // Loop through each pin and init the RMT channels
     for (uint8_t i = 0; i < NUM_MOTORS; i++)
     {
@@ -64,18 +59,18 @@ void setup_rmt_channels(gpio_num_t pins[NUM_MOTORS])
     };
 
     // Sync the RMT channels
-#if RMT_SYNC
-    rmt_sync_manager_config_t synchro_config = {
-        .tx_channel_array = rmt_channels,
-        .array_size = sizeof(rmt_channels) / sizeof(rmt_channels[0])};
-    ESP_ERROR_CHECK(rmt_new_sync_manager(&synchro_config, &synchro));
-#endif
+    // #if RMT_SYNC
+    //     rmt_sync_manager_config_t synchro_config = {
+    //         .tx_channel_array = rmt_channels,
+    //         .array_size = sizeof(rmt_channels) / sizeof(rmt_channels[0])};
+    //     ESP_ERROR_CHECK(rmt_new_sync_manager(&synchro_config, &synchro));
+    // #endif
 
     ESP_LOGI(TAG, "All TX channels configured.");
 };
 
-// RMT_CALLBACK_ATTR
-void RMT_CALLBACK_ATTR send_dshot_frame(uint16_t (*throttle)[NUM_MOTORS], bool telemetry)
+// __attribute__((optimize("O0")))
+void IRAM_ATTR send_dshot_frame(uint16_t (*throttle)[NUM_MOTORS], bool telemetry)
 {
     // Create DSHOT frame
     // dshot_packet frame[NUM_MOTORS] = {};
@@ -141,11 +136,11 @@ void RMT_CALLBACK_ATTR send_dshot_frame(uint16_t (*throttle)[NUM_MOTORS], bool t
                      &tx_config);
     };
 
-// Restart RMT sync manager
-#if RMT_SYNC
-    // ESP_LOGI(TAG, "Restarting synchronization manager.");
-    rmt_sync_reset(synchro);
-#endif
+    // Restart RMT sync manager
+    // #if RMT_SYNC
+    //     // ESP_LOGI(TAG, "Restarting synchronization manager.");
+    //     rmt_sync_reset(synchro);
+    // #endif
 
     // ESP_LOGI(TAG, "DSHOT command sent %d - %d - %d - %d throttle. RAW PACKET: %x",
     //          frame[0].throttle_value,
