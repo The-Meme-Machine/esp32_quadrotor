@@ -26,7 +26,7 @@ void IRAM_ATTR drdy_intr_flag(void *args)
 }
 
 // Stability control loop (critical)
-void control_loop()
+void IRAM_ATTR control_loop()
 {
     static uint64_t loop_count = 0;
 
@@ -56,72 +56,33 @@ void control_loop()
             // g_y = apply_noise_floor(g_y, RATE_ZERO);
             // g_z = apply_noise_floor(g_z, RATE_ZERO);
 
-            // if (loop_count < 5000)
-            // {
-            //     throttles[0] = 0;
-            //     throttles[1] = 0;
-            //     throttles[2] = 0;
-            //     throttles[3] = 0;
-            // }
-            // else
-            // {
-            //     uint16_t throttle_setting = clamp_throttle_limit((loop_count - 5000) / 800, 50);
-            //     throttles[0] = throttle_setting;
-            //     throttles[1] = throttle_setting;
-            //     throttles[2] = throttle_setting;
-            //     throttles[3] = throttle_setting;
-            // }
+            if (motor_armed_flag)
+            {
+                if (loop_count < 2000)
+                {
+                    throttles[0] = 0;
+                    throttles[1] = 0;
+                    throttles[2] = 0;
+                    throttles[3] = 0;
+                }
+                else
+                {
+                    // uint16_t throttle_setting = clamp_throttle_limit((loop_count + 78000) / 800, 50);
+                    uint16_t throttle_setting = 500;
+                    throttles[0] = throttle_setting;
+                    throttles[1] = throttle_setting;
+                    throttles[2] = 0;
+                    throttles[3] = throttle_setting;
 
-            if (loop_count < 1250)
-            {
-                throttles[0] = 0;
-                throttles[1] = 0;
-                throttles[2] = 0;
-                throttles[3] = 0;
-            }
-            else if (loop_count >= 1250 && loop_count < 1500)
-            {
-                throttles[0] = 100;
-                throttles[1] = 100;
-                throttles[2] = 100;
-                throttles[3] = 100;
-            }
-            else if (loop_count >= 1500 && loop_count < 1900)
-            {
-                throttles[0] = 200;
-                throttles[1] = 200;
-                throttles[2] = 200;
-                throttles[3] = 200;
-            }
-            else if (loop_count >= 1900 && loop_count < 2300)
-            {
-                throttles[0] = 300;
-                throttles[1] = 300;
-                throttles[2] = 300;
-                throttles[3] = 300;
-            }
-            else if (loop_count >= 2300 && loop_count < 2700)
-            {
-                throttles[0] = 400;
-                throttles[1] = 400;
-                throttles[2] = 400;
-                throttles[3] = 400;
-            }
-            else
-            {
-                throttles[0] = 200;
-                throttles[1] = 200;
-                throttles[2] = 200;
-                throttles[3] = 200;
-            }
-            send_dshot_frame(&throttles, TELEMETRY);
+                    if (loop_count % 5000 == 0)
+                    {
+                        printf("Throttle: %d\n", throttle_setting);
+                    }
+                }
 
-            // if (loop_count % 5000 == 0)
-            // {
-            //     printf("Throttles: %d \n", throttles[0]);
-            // }
-
-            loop_count++;
+                send_dshot_frame(&throttles, TELEMETRY);
+                loop_count++;
+            }
 
             // log_data log_args = {
             //     .g_x = g_x,
@@ -142,6 +103,30 @@ void control_loop()
 
         // }
     }
+}
+
+void test_motor_func()
+{
+    static uint64_t loop_count = 0;
+    if (loop_count < 2000)
+    {
+        throttles[0] = 0;
+        throttles[1] = 0;
+        throttles[2] = 0;
+        throttles[3] = 0;
+    }
+    else
+    {
+        // uint16_t throttle_setting = clamp_throttle_limit((loop_count - 5000 + 1600) / 800, 50);
+        uint16_t throttle_setting = 500;
+        throttles[0] = throttle_setting;
+        throttles[1] = throttle_setting;
+        throttles[2] = throttle_setting;
+        throttles[3] = throttle_setting;
+    }
+
+    send_dshot_frame(&throttles, TELEMETRY);
+    loop_count++;
 }
 
 void app_main()
@@ -169,9 +154,11 @@ void app_main()
 
     setup_imu_mag(IMU_data_pin, IMU_clock_pin);
 
+    ESP_LOGI(TAG, "Finished setup.");
+
     // Pin main control loop to second core
     // Leave first open for navigation or communication
-    ESP_LOGI(TAG, "Created main control loop...");
+    // ESP_LOGI(TAG, "Created main control loop...");
     xTaskCreatePinnedToCore(
         control_loop,
         "ctrl_loop",
@@ -181,8 +168,6 @@ void app_main()
         NULL,
         1 // Core 1
     );
-
-    ESP_LOGI(TAG, "Finished setup.");
 
     // Verify interrupt timing
     // const esp_timer_create_args_t timer_args = {
@@ -196,4 +181,15 @@ void app_main()
     // esp_timer_start_periodic(timer, 60);      // 1 sec
 
     // check_int_pin();
+
+    // const esp_timer_create_args_t timer_args = {
+    //     .callback = &test_motor_func,
+    //     .name = "ctrl loop",
+    //     .dispatch_method = ESP_TIMER_TASK};
+
+    // esp_timer_handle_t timer;
+    // esp_timer_create(&timer_args, &timer);
+    // esp_timer_start_periodic(timer, 1200); // 1 sec
+
+    motor_armed_flag = true;
 };

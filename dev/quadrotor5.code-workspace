@@ -25,7 +25,8 @@
 			"esp_timer.h": "c",
 			"string": "c",
 			"string_view": "c",
-			"span": "c"
+			"span": "c",
+			"rmt_ll.h": "c"
 		}
 	}
 }

@@ -1,4 +1,5 @@
 #include <driver/rmt_tx.h>
+// #include <hal/rmt_ll.h>
 #include <driver/gpio.h>
 #include <esp_log.h>
 #include <esp_attr.h>
@@ -20,18 +21,18 @@
 // #define DSHOT_BIT_TIME 1675   // Total bit time
 
 // DSHOT300 Timings
-// #define DSHOT_BIT_1_HIGH 2500 // 1-bit: 1250ns high
-// #define DSHOT_BIT_1_LOW 825   // 1-bit: 1250ns high
-// #define DSHOT_BIT_0_HIGH 1250 // 0-bit: 625ns high
-// #define DSHOT_BIT_0_LOW 2075  // 0-bit: 625ns high
-// #define DSHOT_BIT_TIME 3325   // Total bit time
+#define DSHOT_BIT_1_HIGH 2500 // 1-bit: 1250ns high
+#define DSHOT_BIT_1_LOW 825   // 1-bit: 1250ns high
+#define DSHOT_BIT_0_HIGH 1250 // 0-bit: 625ns high
+#define DSHOT_BIT_0_LOW 2075  // 0-bit: 625ns high
+#define DSHOT_BIT_TIME 3325   // Total bit time
 
 // DSHOT150 Timings
-#define DSHOT_BIT_1_HIGH 5000 // 1-bit: 1250ns high
-#define DSHOT_BIT_1_LOW 1675  // 1-bit: 1250ns high
-#define DSHOT_BIT_0_HIGH 2500 // 0-bit: 625ns high
-#define DSHOT_BIT_0_LOW 4175  // 0-bit: 625ns high
-#define DSHOT_BIT_TIME 6675   // Total bit time
+// #define DSHOT_BIT_1_HIGH 5000 // 1-bit: 1250ns high
+// #define DSHOT_BIT_1_LOW 1675  // 1-bit: 1250ns high
+// #define DSHOT_BIT_0_HIGH 2500 // 0-bit: 625ns high
+// #define DSHOT_BIT_0_LOW 4175  // 0-bit: 625ns high
+// #define DSHOT_BIT_TIME 6675   // Total bit time
 
 // DSHOT command structure
 // typedef union
