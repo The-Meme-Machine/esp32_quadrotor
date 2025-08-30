@@ -8,6 +8,12 @@
 #include <dshot.h>
 #include <ws2812.h>
 #include <IMU.h>
+#include <filters.h>
+#include <full_ff.h>
+#include <rate.h>
+#include <angle.h>
+#include <alt_hold.h>
+#include <pos_hold.h>
 
 #define NUM_MOTORS 4
 #define TELEMETRY false // toggle telemetry to false
@@ -56,6 +62,9 @@ volatile flight_mode_t flight_mode = FLIGHT_MODE_ANGLE; // Default flight mode
 
 // New commands received
 volatile bool cmd_drdy_flag = false;
+
+// debug mode
+bool debug_flag = true;
 
 // Config
 uint8_t throttle_limit = 50;
