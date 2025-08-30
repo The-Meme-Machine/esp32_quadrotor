@@ -24,7 +24,6 @@ i2c_device_config_t mag_cfg = {
     // .scl_speed_hz = 100000, // 100kHz standard mode
     // .scl_speed_hz = 400000, // 400kHz fast mode
     .scl_speed_hz = 1000000, // 1000kHz fast+ mode
-
 };
 
 IMU_packet IMU_data;
@@ -59,8 +58,8 @@ void setup_imu_mag(gpio_num_t sda, gpio_num_t slc)
         uint8_t whoami_addr = 0x0F;
         uint8_t IMU_whoami_reg;
         uint8_t MAG_whoami_reg;
-        i2c_master_transmit_receive(IMU_handle, &whoami_addr, 1, &IMU_whoami_reg, 1, -1);
-        i2c_master_transmit_receive(mag_handle, &whoami_addr, 1, &MAG_whoami_reg, 1, -1);
+        ESP_ERROR_CHECK(i2c_master_transmit_receive(IMU_handle, &whoami_addr, 1, &IMU_whoami_reg, 1, -1));
+        ESP_ERROR_CHECK(i2c_master_transmit_receive(mag_handle, &whoami_addr, 1, &MAG_whoami_reg, 1, -1));
 
         if (IMU_whoami_reg == IMU_WHOAMI && MAG_whoami_reg == MAG_WHOAMI)
         {
@@ -143,11 +142,11 @@ void write_to_buf(i2c_master_dev_handle_t dev, uint8_t addr, uint8_t val)
 {
     // Write to buffer
     uint8_t buf[2] = {addr, val};
-    i2c_master_transmit(dev, buf, 2, -1);
+    ESP_ERROR_CHECK(i2c_master_transmit(dev, buf, 2, -1));
 
     // Readback from buffer
     uint8_t readback;
-    i2c_master_transmit_receive(dev, &buf[0], 1, &readback, 1, -1);
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev, &buf[0], 1, &readback, 1, -1));
 
     if (readback == val)
     {
@@ -164,7 +163,7 @@ int16_t read_twos_comp_buf(i2c_master_dev_handle_t dev, uint8_t addr)
 {
     uint8_t reg_addr = addr;
     uint8_t out_buf[2] = {0};
-    i2c_master_transmit_receive(dev, &reg_addr, 1, out_buf, 2, -1);
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev, &reg_addr, 1, out_buf, 2, -1));
     // Two's complement binary format
     int16_t out = (int16_t)((out_buf[1] << 8) | out_buf[0]);
 
@@ -175,13 +174,13 @@ IMU_packet *read_IMU()
 {
     if (!i2c_busy_flag)
     {
-        // i2c_busy_flag = true;
+        i2c_busy_flag = true;
 
         uint8_t out_buf[12];
         uint8_t addr = 0x22;
-        i2c_master_transmit_receive(IMU_handle, &addr, 1, out_buf, 12, -1);
+        ESP_ERROR_CHECK(i2c_master_transmit_receive(IMU_handle, &addr, 1, out_buf, 12, -1));
 
-        // i2c_busy_flag = false;
+        i2c_busy_flag = false;
 
         IMU_data.g_x = (int16_t)((out_buf[1] << 8) | out_buf[0]);
         IMU_data.g_y = (int16_t)((out_buf[3] << 8) | out_buf[2]);
@@ -189,12 +188,14 @@ IMU_packet *read_IMU()
         IMU_data.xl_x = (int16_t)((out_buf[7] << 8) | out_buf[6]);
         IMU_data.xl_y = (int16_t)((out_buf[9] << 8) | out_buf[8]);
         IMU_data.xl_z = (int16_t)((out_buf[11] << 8) | out_buf[10]);
+        IMU_data.stale_flag = false;
 
         return &IMU_data;
     }
     else
     {
         // if i2c is busy, return stale data
+        IMU_data.stale_flag = true;
         return &IMU_data;
     }
 }
@@ -214,17 +215,19 @@ mag_packet *read_mag()
         mag_data.m_x = (int16_t)((out_buf[1] << 8) | out_buf[0]);
         mag_data.m_y = (int16_t)((out_buf[3] << 8) | out_buf[2]);
         mag_data.m_z = (int16_t)((out_buf[5] << 8) | out_buf[4]);
+        mag_data.stale_flag = false;
 
         return &mag_data;
     }
     else
     {
         // if i2c is busy, return stale data
+        mag_data.stale_flag = true;
         return &mag_data;
     }
 }
 
-int16_t read_temp()
+int16_t *read_temp()
 {
     static int16_t data;
 
@@ -239,11 +242,11 @@ int16_t read_temp()
         i2c_busy_flag = false;
 
         data = (int16_t)((out_buf[1] << 8) | out_buf[0]);
-        return data;
+        return &data;
     }
     else
     {
         // if i2c is busy, return stale data
-        return data;
+        return &data;
     }
 }

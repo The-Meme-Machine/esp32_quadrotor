@@ -23,3 +23,5 @@ function [Xdot] = qrotor_model(X, U)
 % th3
 % th4
 % ];
+
+%% Constants

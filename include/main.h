@@ -33,9 +33,29 @@ typedef struct
     uint16_t *throttles;
 } log_data;
 
+typedef enum
+{
+    FLIGHT_MODE_ANGLE = 0, // Control loop controls angular position
+    FLIGHT_MODE_RATE,      // Control loop controls angular rate
+    FLIGHT_MODE_FF,        // Rate mode with throttle uncapped (risks actuator saturation)
+    FLIGHT_MODE_ALT_HOLD,  // Angle mode, where throttle controls altitude rate rather than motor power
+    FLIGHT_MODE_POS_HOLD   // Altitude hold mode, where pitch/roll control horizontal position
+} flight_mode_t;
+
 // Throttle values
 uint16_t throttles[NUM_MOTORS] = {DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN};
 
 // Flags // volatile
-static volatile bool imu_drdy_flag = false;    // IMU interrupt recieved if true
-static volatile bool motor_armed_flag = false; // Motors can spin if true
+volatile bool imu_drdy_flag = false; // IMU interrupt recieved if true
+
+// Can motors spin?
+volatile bool motor_armed_flag = false;
+
+// Flight mode
+volatile flight_mode_t flight_mode = FLIGHT_MODE_ANGLE; // Default flight mode
+
+// New commands received
+volatile bool cmd_drdy_flag = false;
+
+// Config
+uint8_t throttle_limit = 50;

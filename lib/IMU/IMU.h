@@ -40,6 +40,9 @@ typedef struct
     int16_t xl_y;
     int16_t xl_z;
 
+    // Stale data?
+    bool stale_flag;
+
 } IMU_packet;
 
 typedef struct
@@ -48,6 +51,9 @@ typedef struct
     int16_t m_x;
     int16_t m_y;
     int16_t m_z;
+
+    // Stale data?
+    bool stale_flag;
 
 } mag_packet;
 
