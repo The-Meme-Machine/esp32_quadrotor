@@ -25,7 +25,9 @@
 #define ACCEL_ZERO 20  // mg
 
 // Sensitivity
-#define RATE_SENS 17.50  // mdps / LSB
+// #define RATE_SENS 17.50  // mdps / LSB (500dps)
+// #define RATE_SENS 35.0 // mdps / LSB (1000dps)
+#define RATE_SENS 70.0   // mdps / LSB (2000dps)
 #define ACCEL_SENS 0.122 // mg / LSB
 
 typedef struct

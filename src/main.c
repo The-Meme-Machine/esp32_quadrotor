@@ -19,6 +19,8 @@ static const char *TAG = "MAIN";
 //     }
 // }
 
+// IMU data ready interrupt handler
+// Control loop runs on DRDY flag toggle
 void IRAM_ATTR drdy_intr_flag(void *args)
 {
     imu_drdy_flag = true;
@@ -30,6 +32,8 @@ void IRAM_ATTR drdy_intr_flag(void *args)
 void control_loop()
 {
     static uint64_t loop_count = 0;
+
+    crsf_channels_t commands = {0};
 
     while (1)
     {
@@ -51,6 +55,12 @@ void control_loop()
             float g_x = imu_data->g_x * RATE_SENS; // mg
             float g_y = imu_data->g_y * RATE_SENS;
             float g_z = imu_data->g_z * RATE_SENS;
+
+            // Send telemetry at 10Hz
+            if (loop_count % 80 == 0)
+            {
+                // Add data to telemetry queue
+            }
 
             // Filters
 
@@ -105,7 +115,6 @@ void control_loop()
                 }
 
                 send_dshot_frame(&throttles, TELEMETRY);
-                loop_count++;
             }
             else
             {
@@ -117,12 +126,29 @@ void control_loop()
                 send_dshot_frame(&throttles, TELEMETRY);
             }
 
+            loop_count++;
+
             // uint64_t end = esp_timer_get_time();
             // printf("Control loop took %llu us... \n", (end - start));
         }
-        // else {
+        // Absent fresh IMU data,
+        else
+        {
+            // Fetch radio commands
+            // 50Hz update rate nominal
+            CRSF_receive_channels(&commands);
 
-        // }
+            if (loop_count % 5000 == 0)
+            {
+                printf("Channel 3 (Throttle): %d\n", commands.ch3);
+                printf("Channel 5 (Armed): %d\n", commands.ch5);
+            }
+
+            // for (uint8_t channel = 1; channel < 17; channel++)
+            // {
+            //     printf(">Channel %d: %d\n", channel, commands.);
+            // }
+        }
     }
 }
 
@@ -159,6 +185,33 @@ void app_main()
 
     setup_rmt_channels(motor_pins);
 
+    // Setting up WiFi telemetry
+    ESP_LOGI(TAG, "Setting up WiFi telemetry dashboard...");
+    // Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
+    // wifi_init_softap();
+    // server = start_webserver();
+
+    // if (server)
+    // {
+    //     xTaskCreate(telemetry_sender_task, "telemetry_sender", 4096, NULL, 5, NULL);
+    // }
+
+    // Setting up CRSF reciever
+    ESP_LOGI(TAG, "Setting up CRSF reciever...");
+    crsf_config_t crsf_config = {
+        .uart_num = UART_NUM_1,
+        .tx_pin = 11,
+        .rx_pin = 10};
+    CRSF_init(&crsf_config);
+
     ESP_LOGI(TAG, "Setting up GPIO...");
     gpio_config_t io_conf = {
         .intr_type = GPIO_INTR_POSEDGE, // Trigger on rising edge
@@ -179,7 +232,7 @@ void app_main()
 
     // Pin main control loop to second core
     // Leave first open for navigation or communication
-    // ESP_LOGI(TAG, "Created main control loop...");
+    ESP_LOGI(TAG, "Starting control loop...");
     xTaskCreatePinnedToCore(
         control_loop,
         "ctrl_loop",

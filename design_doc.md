@@ -31,3 +31,4 @@ A generic, perfectly axi-symmetric frame was chosen for the ease of analyzing pl
 - Accessing the IMU over I2C consumes a little less than half of the control loop time (even at 1000 kHz bus speed). SPI turned out to be the better choice.
 - Manufacturing a single 20mm x 20mm board would have simpified mounting and bus integration (Also would have enabled SPI communication with IMU). 
 - A brushed motor is much easier to model than a brushless one + ESC.
+- The 2000dps limit of the IMU resulted in sensor saturation in rare cases.

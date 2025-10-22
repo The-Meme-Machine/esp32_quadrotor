@@ -1,5 +1,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+// #include <stdint.h>
 #include <esp_timer.h>
 #include <esp_log.h>
 #include <driver/gpio.h>
@@ -8,12 +9,14 @@
 #include <dshot.h>
 #include <ws2812.h>
 #include <IMU.h>
+#include <wifi.h>
 #include <filters.h>
 #include <full_ff.h>
 #include <rate.h>
 #include <angle.h>
 #include <alt_hold.h>
 #include <pos_hold.h>
+#include <reciever.h>
 
 #define NUM_MOTORS 4
 #define TELEMETRY false // toggle telemetry to false
@@ -64,7 +67,7 @@ volatile flight_mode_t flight_mode = FLIGHT_MODE_ANGLE; // Default flight mode
 volatile bool cmd_drdy_flag = false;
 
 // debug mode
-bool debug_flag = true;
+volatile bool debug_flag = true;
 
 // Config
 uint8_t throttle_limit = 50;

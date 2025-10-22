@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Quadrotor Telemetry Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f4f4f4;
+        }
+
+        header {
+            background: #222;
+            color: #fff;
+            padding: 1em;
+            text-align: center;
+        }
+
+        main {
+            max-width: 800px;
+            margin: 2em auto;
+            background: #fff;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1em;
+        }
+
+        .telemetry-item {
+            background: #e9ecef;
+            padding: 1em;
+            border-radius: 6px;
+        }
+
+        .telemetry-label {
+            font-weight: bold;
+        }
+
+        .telemetry-value {
+            font-size: 1.2em;
+            margin-top: 0.5em;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Quadrotor Telemetry Dashboard</h1>
+    </header>
+    <main>
+        <section class="telemetry-grid">
+            <div class="telemetry-item">
+                <div class="telemetry-label">Altitude</div>
+                <div class="telemetry-value" id="altitude">--</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Speed</div>
+                <div class="telemetry-value" id="speed">--</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Battery</div>
+                <div class="telemetry-value" id="battery">--</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">GPS Coordinates</div>
+                <div class="telemetry-value" id="gps">--</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Orientation (Yaw/Pitch/Roll)</div>
+                <div class="telemetry-value" id="orientation">--</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Signal Strength</div>
+                <div class="telemetry-value" id="signal">--</div>
+            </div>
+        </section>
+    </main>
+    <script>
+        // Example: Update telemetry values dynamically
+        // Replace with actual telemetry data source
+        function updateTelemetry(data) {
+            document.getElementById('altitude').textContent = data.altitude + ' m';
+            document.getElementById('speed').textContent = data.speed + ' m/s';
+            document.getElementById('battery').textContent = data.battery + ' %';
+            document.getElementById('gps').textContent = data.gps;
+            document.getElementById('orientation').textContent = data.orientation;
+            document.getElementById('signal').textContent = data.signal + ' %';
+        }
+        // Example usage:
+        // updateTelemetry({ altitude: 120, speed: 15, battery: 87, gps: '37.7749,-122.4194', orientation: 'Yaw: 45°, Pitch: 10°, Roll: 5°', signal: 92 });
+    </script>
+</body>
+
+</html>
+</div>

@@ -97,13 +97,14 @@ void setup_imu_mag(gpio_num_t sda, gpio_num_t slc)
     // Set output rate to 1.66kHz (ODR_XL)
     // first stage digital filtering
     // write_to_buf(IMU_handle, 0x10, 0b10001010); // 0b10001000 for no filtering
-    write_to_buf(IMU_handle, 0x10, 0b01111010); // for 833Hz
+    write_to_buf(IMU_handle, 0x10, 0b01111010); // for 833Hz ODR
 
     // CTRL2_G register ->
     // Set output rate to 1.66kHz
     // Set limit to 500dps
     // write_to_buf(IMU_handle, 0x11, 0b10000100);
-    write_to_buf(IMU_handle, 0x11, 0b01110100);
+    // write_to_buf(IMU_handle, 0x11, 0b01110100);
+    write_to_buf(IMU_handle, 0x11, 0b01111100); // for 2000dps
 
     // CTRL3_C register ->
     // Enable block data update

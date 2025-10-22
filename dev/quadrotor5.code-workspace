@@ -26,7 +26,10 @@
 			"string": "c",
 			"string_view": "c",
 			"span": "c",
-			"rmt_ll.h": "c"
+			"rmt_ll.h": "c",
+			"compare": "c",
+			"variant": "c",
+			"esp_dsp.h": "c"
 		}
 	}
 }
