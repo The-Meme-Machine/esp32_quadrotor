@@ -29,7 +29,12 @@ gpio_num_t esc_telemetry_pin = GPIO_NUM_6;
 gpio_num_t IMU_clock_pin = GPIO_NUM_7; // yellow
 gpio_num_t IMU_data_pin = GPIO_NUM_8;  // blue
 gpio_num_t IMU_int_pin = GPIO_NUM_9;   // IMU interrupt
-gpio_num_t WS2812_pin = GPIO_NUM_21;   // Integral WS2812
+gpio_num_t CRSF_UART_TX_PIN = GPIO_NUM_11;
+gpio_num_t CRSF_UART_RX_PIN = GPIO_NUM_10;
+
+gpio_num_t WS2812_pin = GPIO_NUM_21; // Integral WS2812
+
+QueueHandle_t telemetry_tx_queue;
 
 typedef struct
 {
@@ -45,14 +50,12 @@ typedef struct
 typedef enum
 {
     FLIGHT_MODE_ANGLE = 0, // Control loop controls angular position
+    FLIGHT_MODE_HYBRID,    // Acro mode, but levels out when sticks are centered
     FLIGHT_MODE_RATE,      // Control loop controls angular rate
     FLIGHT_MODE_FF,        // Rate mode with throttle uncapped (risks actuator saturation)
     FLIGHT_MODE_ALT_HOLD,  // Angle mode, where throttle controls altitude rate rather than motor power
     FLIGHT_MODE_POS_HOLD   // Altitude hold mode, where pitch/roll control horizontal position
 } flight_mode_t;
-
-// Throttle values
-uint16_t throttles[NUM_MOTORS] = {DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN};
 
 // Flags // volatile
 volatile bool imu_drdy_flag = false; // IMU interrupt recieved if true
@@ -71,3 +74,11 @@ volatile bool debug_flag = true;
 
 // Config
 uint8_t throttle_limit = 50;
+
+const float mixer_matrix[16] = {
+    //  Thrust, Roll, Pitch, Yaw
+    1.0, -1.0, -1.0, -1.0, // Motor 1
+    1.0, 1.0, -1.0, 1.0,   // Motor 2
+    1.0, 1.0, 1.0, -1.0,   // Motor 3
+    1.0, -1.0, 1.0, 1.0    // Motor 4
+};

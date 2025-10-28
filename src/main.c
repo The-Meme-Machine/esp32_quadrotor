@@ -28,24 +28,35 @@ void IRAM_ATTR drdy_intr_flag(void *args)
 }
 
 // Stability control loop (critical)
-// Avoid floating point operations in ISR
 void control_loop()
 {
     static uint64_t loop_count = 0;
 
+    // Throttle values
+    uint16_t throttles[NUM_MOTORS] = {DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN, DSHOT_THROTTLE_MIN};
+
+    // Radio commands
     crsf_channels_t commands = {0};
+
+    float ctrl_inputs[4] = {0};            // Thrust, Roll, Pitch, Yaw
+    float motor_outputs[NUM_MOTORS] = {0}; // Motor outputs after mixing
 
     while (1)
     {
         // Run the loop when new IMU data is ready
-        // Could also use a semaphore here but its slower for the critical loop
+        // Could replace with semaphore if more CPU cycles are needed
         if (imu_drdy_flag)
         {
             imu_drdy_flag = false;
 
-            // uint64_t start = esp_timer_get_time();
+            // Measure loop time
+            int64_t start = esp_timer_get_time();
 
+            // Fetch IMU data
             IMU_packet *imu_data = read_IMU();
+
+            // Fetch radio commands
+            CRSF_receive_channels(&commands);
 
             // 32bit float for FPU acceleration - Avoid floating point division
             // Convert to physical units
@@ -56,38 +67,42 @@ void control_loop()
             float g_y = imu_data->g_y * RATE_SENS;
             float g_z = imu_data->g_z * RATE_SENS;
 
-            // Send telemetry at 10Hz
-            if (loop_count % 80 == 0)
-            {
-                // Add data to telemetry queue
-            }
-
             // Filters
 
-            // Check for new commands
-
-            // Flight modes
-            switch (flight_mode)
+            // Flight modes (Channel 6 switch)
+            flight_mode = (flight_mode_t)reciever_3pos_switch(commands.ch6, 100);
+            switch (flight_mode) // calculate motor commands based on flight mode
             {
             case FLIGHT_MODE_ANGLE:
+                break;
+
+            case FLIGHT_MODE_HYBRID:
                 break;
 
             case FLIGHT_MODE_RATE:
                 break;
 
-            case FLIGHT_MODE_FF:
-                break;
+                // case FLIGHT_MODE_FF:
+                //     break;
 
-            case FLIGHT_MODE_ALT_HOLD:
-                break;
+                // case FLIGHT_MODE_ALT_HOLD:
+                //     break;
 
-            case FLIGHT_MODE_POS_HOLD:
-                break;
+                // case FLIGHT_MODE_POS_HOLD:
+                //     break;
 
             default:
                 break;
             }
 
+            // Motor mixer
+            // Optimized DSP matrix multiplication
+            dspm_mult_f32(&mixer_matrix[0], &ctrl_inputs[0], &motor_outputs[0], 4, 4, 1);
+
+            // Clamp float outputs to valid throttle range and convert to 16bit unsigned int
+
+            // check if armed
+            motor_armed_flag = reciever_switch(commands.ch5, 1500);
             if (motor_armed_flag)
             {
                 // Send zero throttle to arm motors (BLHeli S requirement)
@@ -101,17 +116,17 @@ void control_loop()
                 // Send actual throttle once armed
                 else
                 {
-                    uint16_t throttle_setting = clamp_throttle_limit((loop_count + 78000) / 800, throttle_limit);
-                    throttles[0] = throttle_setting;
-                    throttles[1] = throttle_setting;
-                    throttles[2] = throttle_setting;
-                    throttles[3] = throttle_setting;
+                    // uint16_t throttle_setting = clamp_throttle_limit((loop_count + 78000) / 800, throttle_limit);
+                    // throttles[0] = throttle_setting;
+                    // throttles[1] = throttle_setting;
+                    // throttles[2] = throttle_setting;
+                    // throttles[3] = throttle_setting;
 
                     // Log throttle values for debugging
-                    if (loop_count % 5000 == 0)
-                    {
-                        printf("Throttle: %d\n", throttle_setting);
-                    }
+                    // if (loop_count % 5000 == 0)
+                    // {
+                    //     printf("Throttle: %d\n", throttle_setting);
+                    // }
                 }
 
                 send_dshot_frame(&throttles, TELEMETRY);
@@ -128,57 +143,64 @@ void control_loop()
 
             loop_count++;
 
-            // uint64_t end = esp_timer_get_time();
+            // Measure loop time
+            int64_t end = esp_timer_get_time();
             // printf("Control loop took %llu us... \n", (end - start));
+
+            // Send telemetry at 1Hz (Can go up to 10Hz if needed)
+            if (loop_count % 80 == 0)
+            {
+                // Add data to telemetry queue
+                telemetry_data_t new_telem_data = {
+                    .armed = motor_armed_flag,
+                    .flight_mode = (uint8_t)flight_mode,
+                    .loop_time_us = end - start,
+                    .g_x = g_x,
+                    .g_y = g_y,
+                    .g_z = g_z,
+                    .xl_x = xl_x,
+                    .xl_y = xl_y,
+                    .xl_z = xl_z,
+                    .thr_1 = throttles[0],
+                    .thr_2 = throttles[1],
+                    .thr_3 = throttles[2],
+                    .thr_4 = throttles[3],
+                    .roll = ctrl_inputs[1],
+                    .pitch = ctrl_inputs[2],
+                    .yaw = ctrl_inputs[3],
+                    .throttle = ctrl_inputs[0],
+                    .ch1 = commands.ch1,
+                    .ch2 = commands.ch2,
+                    .ch3 = commands.ch3,
+                    .ch4 = commands.ch4,
+                    .ch5 = commands.ch5,
+                    .ch6 = commands.ch6,
+                    .ch7 = commands.ch7,
+                    .ch8 = commands.ch8};
+
+                if (xQueueSend(telemetry_tx_queue, &new_telem_data, (TickType_t)0) != pdTRUE)
+                {
+                    ESP_LOGI(TAG, "Telemetry queue full. Dropping packet...");
+                }
+            }
         }
         // Absent fresh IMU data,
         else
         {
-            // Fetch radio commands
-            // 50Hz update rate nominal
-            CRSF_receive_channels(&commands);
-
-            if (loop_count % 5000 == 0)
-            {
-                printf("Channel 3 (Throttle): %d\n", commands.ch3);
-                printf("Channel 5 (Armed): %d\n", commands.ch5);
-            }
-
-            // for (uint8_t channel = 1; channel < 17; channel++)
+            // if (loop_count % 5000 == 0)
             // {
-            //     printf(">Channel %d: %d\n", channel, commands.);
+            //     printf("Channel 3 (Throttle): %d\n", commands.ch3);
+            //     printf("Channel 5 (Armed): %d\n", commands.ch5);
             // }
         }
     }
-}
 
-void test_motor_func()
-{
-    static uint64_t loop_count = 0;
-    if (loop_count < 2000)
-    {
-        throttles[0] = 0;
-        throttles[1] = 0;
-        throttles[2] = 0;
-        throttles[3] = 0;
-    }
-    else
-    {
-        uint16_t throttle_setting = clamp_throttle_limit((loop_count - 5000 + 1600) / 800, 50);
-        // uint16_t throttle_setting = 500;
-        throttles[0] = throttle_setting;
-        throttles[1] = throttle_setting;
-        throttles[2] = throttle_setting;
-        throttles[3] = throttle_setting;
-    }
-
-    send_dshot_frame(&throttles, TELEMETRY);
-    loop_count++;
+    // Should never reach here
+    vTaskDelete(NULL);
 }
 
 void app_main()
 {
-    // esp_log_level_set("*", ESP_LOG_INFO); // Set global log level
     vTaskDelay(pdMS_TO_TICKS(3000));
 
     ESP_LOGI(TAG, "Program is running...");
@@ -188,6 +210,7 @@ void app_main()
     // Setting up WiFi telemetry
     ESP_LOGI(TAG, "Setting up WiFi telemetry dashboard...");
     // Initialize NVS
+    ESP_LOGI(TAG, "Initializing NVS...");
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
@@ -196,20 +219,20 @@ void app_main()
     }
     ESP_ERROR_CHECK(ret);
 
-    // wifi_init_softap();
-    // server = start_webserver();
+    wifi_init_softap();
+    start_webserver();
 
     // if (server)
     // {
     //     xTaskCreate(telemetry_sender_task, "telemetry_sender", 4096, NULL, 5, NULL);
     // }
 
-    // Setting up CRSF reciever
-    ESP_LOGI(TAG, "Setting up CRSF reciever...");
+    // Setting up CRSF receiver
+    ESP_LOGI(TAG, "Setting up CRSF receiver...");
     crsf_config_t crsf_config = {
         .uart_num = UART_NUM_1,
-        .tx_pin = 11,
-        .rx_pin = 10};
+        .tx_pin = CRSF_UART_TX_PIN,
+        .rx_pin = CRSF_UART_RX_PIN};
     CRSF_init(&crsf_config);
 
     ESP_LOGI(TAG, "Setting up GPIO...");
@@ -227,6 +250,20 @@ void app_main()
     ESP_ERROR_CHECK(gpio_isr_handler_add(IMU_int_pin, drdy_intr_flag, (void *)IMU_int_pin));
 
     setup_imu_mag(IMU_data_pin, IMU_clock_pin);
+
+    // Create telemetry server task
+    ESP_LOGI(TAG, "Starting telemetry task...");
+    telemetry_tx_queue = xQueueCreate(10, sizeof(telemetry_data_t));
+    wifi_telemetry_queue_init(&telemetry_tx_queue);
+    xTaskCreatePinnedToCore(
+        websocket_telemetry_task,
+        "telemetry_server",
+        4096,
+        NULL,
+        8,
+        NULL,
+        0 // Core 0
+    );
 
     ESP_LOGI(TAG, "Finished setup.");
 

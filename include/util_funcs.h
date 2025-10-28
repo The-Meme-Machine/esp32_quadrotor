@@ -23,6 +23,7 @@ static inline uint16_t clamp_throttle_limit(uint16_t input, uint8_t cap)
     return input;
 }
 
+// Log IMU and throttle data for teleplot
 void logging_func(void *args)
 {
     log_data *data = (log_data *)args;
@@ -31,4 +32,43 @@ void logging_func(void *args)
            data->g_x, data->g_y, data->g_z,
            data->xl_x, data->xl_y, data->xl_z,
            data->throttles[0], data->throttles[1], data->throttles[2], data->throttles[3]);
+}
+
+// Print vector for debugging
+void print_vector(const char *name, const float *vector, int len)
+{
+    printf("  %s: [", name);
+    for (int i = 0; i < len; i++)
+    {
+        printf(" %.2f", vector[i]);
+        if (i < len - 1)
+            printf(",");
+    }
+    printf(" ]\n");
+}
+
+// Reciever boolean (switch)
+static inline bool reciever_switch(uint16_t channel_value, uint16_t threshold)
+{
+    return channel_value > threshold;
+}
+
+// Reciever 3 position switch
+static inline uint8_t reciever_3pos_switch(uint16_t channel_value, uint16_t deadband)
+{
+    if (channel_value > (1000 + deadband))
+        return 0; // Position 1
+    else if (channel_value < (1000 - deadband))
+        return 2; // Position 2
+    return 1;     // Center position
+}
+
+// Reciever stick position normalized to -1 to 1
+static inline float reciever_stick_normalized(uint16_t channel_value, uint16_t deadband)
+{
+    if (channel_value > (1000 + deadband))
+        return (float)(channel_value - (1000 + deadband)) / (1800 - (1000 + deadband));
+    else if (channel_value < (1000 - deadband))
+        return (float)(channel_value - (1000 - deadband)) / ((1000 - deadband) - 200);
+    return 0.0f;
 }
