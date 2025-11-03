@@ -1,44 +1,39 @@
 #include <angle.h>
 
-// // PID Loop
-// // Axes are uncoupled, so three separate PIDs are adequate
-// static float roll_integral = 0.0f, pitch_integral = 0.0f, yaw_integral = 0.0f;
-// static float prev_roll_error = 0.0f, prev_pitch_error = 0.0f, prev_yaw_error = 0.0f;
+// PID Gains
+float angle_Kp_roll = 0.8f;
+float angle_Ki_roll = 0.01f;
+float angle_Kd_roll = 0.05f;
 
-// // Setpoints (desired angles/rates)
-// float roll_setpoint = 0.0f;
-// float pitch_setpoint = 0.0f;
-// float yaw_setpoint = 0.0f;
+float angle_Kp_pitch = 0.8f;
+float angle_Ki_pitch = 0.01f;
+float angle_Kd_pitch = 0.05f;
 
-// // Measured values (replace with actual sensor fusion output if available)
-// float roll_measured = g_x;
-// float pitch_measured = g_y;
-// float yaw_measured = g_z;
+float angle_Kp_yaw = 0.8f;
+float angle_Ki_yaw = 0.01f;
+float angle_Kd_yaw = 0.05f;
 
-// // PID gains (tune as needed)
-// const float Kp = 0.8f, Ki = 0.01f, Kd = 0.05f;
+// Requires cascades PID loops with rate controllers
+float angle_PID_roll_control(float roll_setpoint, float roll_measured)
+{
+    // // PID Loop
+    // // Axes are uncoupled, so three separate PIDs are adequate
+    float roll_output = 0.0f;
 
-// // Calculate errors
-// float roll_error = roll_setpoint - roll_measured;
-// float pitch_error = pitch_setpoint - pitch_measured;
-// float yaw_error = yaw_setpoint - yaw_measured;
+    // return roll output
+    return roll_output;
+}
 
-// // Integrate errors
-// roll_integral += roll_error;
-// pitch_integral += pitch_error;
-// yaw_integral += yaw_error;
+float angle_PID_pitch_control(float pitch_setpoint, float pitch_measured)
+{
+    // Similar implementation as roll control
+    float pitch_output = 0.0f;
+    return pitch_output;
+}
 
-// // Derivative terms
-// float roll_derivative = roll_error - prev_roll_error;
-// float pitch_derivative = pitch_error - prev_pitch_error;
-// float yaw_derivative = yaw_error - prev_yaw_error;
-
-// // PID outputs
-// float roll_output = Kp * roll_error + Ki * roll_integral + Kd * roll_derivative;
-// float pitch_output = Kp * pitch_error + Ki * pitch_integral + Kd * pitch_derivative;
-// float yaw_output = Kp * yaw_error + Ki * yaw_integral + Kd * yaw_derivative;
-
-// // Save errors for next iteration
-// prev_roll_error = roll_error;
-// prev_pitch_error = pitch_error;
-// prev_yaw_error = yaw_error;
+float angle_PID_yaw_control(float yaw_setpoint, float yaw_measured)
+{
+    // Similar implementation as roll control
+    float yaw_output = 0.0f;
+    return yaw_output;
+}

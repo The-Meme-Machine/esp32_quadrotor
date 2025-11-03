@@ -128,8 +128,12 @@ void setup_imu_mag(gpio_num_t sda, gpio_num_t slc)
 
     // CTRL_REG1
     // Enable temp sensor
-    // Set output data rate to 5Hz
-    write_to_buf(mag_handle, 0x20, 0b10001100);
+    // Set output data rate to 1000Hz
+    write_to_buf(mag_handle, 0x20, 0b10001110);
+
+    // CTRL_REG2
+    // Set full scale to +/-4gauss
+    write_to_buf(mag_handle, 0x21, 0b00000000);
 
     // INT_CFG
     // Enable interrupt on INTM pin

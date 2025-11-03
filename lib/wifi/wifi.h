@@ -36,6 +36,9 @@ typedef struct
     float xl_x;
     float xl_y;
     float xl_z;
+    float m_x;
+    float m_y;
+    float m_z;
 
     // Commanded throttle
     uint16_t thr_1;
@@ -58,6 +61,11 @@ typedef struct
     uint16_t ch6; // Flight mode switch
     uint16_t ch7;
     uint16_t ch8; // Altitude Hold switch
+
+    // Estimated Orientation
+    float est_roll;
+    float est_pitch;
+    float est_yaw;
 
 } telemetry_data_t;
 

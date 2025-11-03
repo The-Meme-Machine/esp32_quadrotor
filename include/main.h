@@ -21,6 +21,7 @@
 #define NUM_MOTORS 4
 #define TELEMETRY false // toggle telemetry to false
 // #define LOG_LOCAL_LEVEL ESP_LOG_INFO // log verbosity
+#define IMU_SAMPLE_FREQUENCY 833 // Hz
 
 // GPIO wiring
 gpio_num_t motor_pins[NUM_MOTORS] = {GPIO_NUM_1, GPIO_NUM_2, GPIO_NUM_3, GPIO_NUM_4};

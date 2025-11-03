@@ -3,6 +3,7 @@ import websockets
 import json
 import curses
 import time
+import math
 
 # --- Configuration ---
 WEBSOCKET_URI = "ws://192.168.4.1/telemetry"
@@ -77,10 +78,20 @@ def draw_dashboard(stdscr, data, connection_status, last_update_time):
     stdscr.addstr(row, col1_x, f"Yaw:      {data.get('yaw', 0.0):>8.2f}")
     row += 1
     stdscr.addstr(row, col1_x, f"Throttle: {data.get('throttle', 0.0):>8.2f}")
+    row += 2
+
+    stdscr.addstr(row, col2_x, "ESTIMATED ORIENTATION", curses.A_UNDERLINE)
+    row += 1
+    stdscr.addstr(row, col2_x, f"Est Roll:  {data.get('est_roll', 0.0) * 180 / math.pi:>8.2f}")
+    row += 1
+    stdscr.addstr(row, col2_x, f"Est Pitch: {data.get('est_pitch', 0.0) * 180 / math.pi:>8.2f}")
+    row += 1
+    stdscr.addstr(row, col2_x, f"Est Yaw:   {data.get('est_yaw', 0.0) * 180 / math.pi:>8.2f}")
+    row += 2
     
     # --- IMU Data ---
     row = 4
-    stdscr.addstr(row, col2_x, "IMU (GYRO)", curses.A_UNDERLINE)
+    stdscr.addstr(row, col2_x, "GYRO (mDPS)", curses.A_UNDERLINE)
     row += 1
     stdscr.addstr(row, col2_x, f"G_X: {data.get('g_x', 0.0):>8.2f}")
     row += 1
@@ -89,13 +100,22 @@ def draw_dashboard(stdscr, data, connection_status, last_update_time):
     stdscr.addstr(row, col2_x, f"G_Z: {data.get('g_z', 0.0):>8.2f}")
     row += 2
     
-    stdscr.addstr(row, col2_x, "IMU (ACCEL)", curses.A_UNDERLINE)
+    stdscr.addstr(row, col2_x, "ACCEL (mG)", curses.A_UNDERLINE)
     row += 1
     stdscr.addstr(row, col2_x, f"XL_X: {data.get('xl_x', 0.0):>8.2f}")
     row += 1
     stdscr.addstr(row, col2_x, f"XL_Y: {data.get('xl_y', 0.0):>8.2f}")
     row += 1
     stdscr.addstr(row, col2_x, f"XL_Z: {data.get('xl_z', 0.0):>8.2f}")
+    row += 2
+
+    stdscr.addstr(row, col2_x, "MAG (Gauss)", curses.A_UNDERLINE)
+    row += 1
+    stdscr.addstr(row, col2_x, f"MG_X: {data.get('mg_x', 0.0):>8.2f}")
+    row += 1
+    stdscr.addstr(row, col2_x, f"MG_Y: {data.get('mg_y', 0.0):>8.2f}")
+    row += 1
+    stdscr.addstr(row, col2_x, f"MG_Z: {data.get('mg_z', 0.0):>8.2f}")
 
     # --- Channels & Throttle ---
     row = 4

@@ -38,8 +38,25 @@ void control_loop()
     // Radio commands
     crsf_channels_t commands = {0};
 
+    // Madgwick estimation
+    Madgwick_est madgwick_filter;
+    Madgwick_init(&madgwick_filter, IMU_SAMPLE_FREQUENCY, 0.13f);
+
     float ctrl_inputs[4] = {0};            // Thrust, Roll, Pitch, Yaw
     float motor_outputs[NUM_MOTORS] = {0}; // Motor outputs after mixing
+
+    pid_controller_t roll_rate_pid;
+    pid_controller_t pitch_rate_pid;
+    pid_controller_t yaw_rate_pid;
+
+    // Initialize rate PIDs
+    pid_init(&roll_rate_pid, 0.15f, 0.0f, 0.002f, -1.0f, 1.0f);
+    pid_init(&pitch_rate_pid, 0.15f, 0.0f, 0.002f, -1.0f, 1.0f);
+    pid_init(&yaw_rate_pid, 0.2f, 0.0f, 0.003f, -1.0f, 1.0f);
+
+    static float prev_roll = 0.0f;
+    static float prev_pitch = 0.0f;
+    static float prev_yaw = 0.0f;
 
     while (1)
     {
@@ -55,6 +72,9 @@ void control_loop()
             // Fetch IMU data
             IMU_packet *imu_data = read_IMU();
 
+            // Fetch magnetometer data
+            mag_packet *mag_data = read_mag();
+
             // Fetch radio commands
             CRSF_receive_channels(&commands);
 
@@ -63,23 +83,39 @@ void control_loop()
             float xl_x = imu_data->xl_x * ACCEL_SENS; // mdps
             float xl_y = imu_data->xl_y * ACCEL_SENS;
             float xl_z = imu_data->xl_z * ACCEL_SENS;
-            float g_x = imu_data->g_x * RATE_SENS; // mg
-            float g_y = imu_data->g_y * RATE_SENS;
-            float g_z = imu_data->g_z * RATE_SENS;
+            float g_x = zero_value_clamp(imu_data->g_x * RATE_SENS, RATE_ZERO); // mg
+            float g_y = zero_value_clamp(imu_data->g_y * RATE_SENS, RATE_ZERO);
+            float g_z = zero_value_clamp(imu_data->g_z * RATE_SENS, RATE_ZERO);
+            float m_x = mag_data->m_x * MAG_SENS; // gauss
+            float m_y = mag_data->m_y * MAG_SENS; // gauss
+            float m_z = mag_data->m_z * MAG_SENS; // gauss
 
             // Filters
+            // Madgwick update
+            Madgwick_update(&madgwick_filter, g_x, g_y, g_z, xl_x, xl_y, xl_z, m_x, m_y, m_z);
+            Madgwick_computeEulerAngles(&madgwick_filter);
 
             // Flight modes (Channel 6 switch)
             flight_mode = (flight_mode_t)reciever_3pos_switch(commands.ch6, 100);
             switch (flight_mode) // calculate motor commands based on flight mode
             {
             case FLIGHT_MODE_ANGLE:
+                ctrl_inputs[0] = reciever_stick_normalized_absolute(commands.ch3, 160);                                            // Throttle
+                ctrl_inputs[1] = pid_compute(&roll_rate_pid, reciever_stick_normalized(commands.ch1, 50), madgwick_filter.roll);   // Roll
+                ctrl_inputs[2] = pid_compute(&pitch_rate_pid, reciever_stick_normalized(commands.ch2, 50), madgwick_filter.pitch); // Pitch
+                ctrl_inputs[3] = pid_compute(&yaw_rate_pid, reciever_stick_normalized(commands.ch4, 50), madgwick_filter.yaw);     // Yaw
+
                 break;
 
             case FLIGHT_MODE_HYBRID:
                 break;
 
             case FLIGHT_MODE_RATE:
+                ctrl_inputs[0] = reciever_stick_normalized_absolute(commands.ch3, 160);                                                         // Throttle
+                ctrl_inputs[1] = pid_compute(&roll_rate_pid, reciever_stick_normalized(commands.ch1, 50), madgwick_filter.roll - prev_roll);    // Roll
+                ctrl_inputs[2] = pid_compute(&pitch_rate_pid, reciever_stick_normalized(commands.ch2, 50), madgwick_filter.pitch - prev_pitch); // Pitch
+                ctrl_inputs[3] = pid_compute(&yaw_rate_pid, reciever_stick_normalized(commands.ch4, 50), madgwick_filter.yaw - prev_yaw);       // Yaw
+
                 break;
 
                 // case FLIGHT_MODE_FF:
@@ -95,11 +131,16 @@ void control_loop()
                 break;
             }
 
+            // Save Previous angular positions for rate calculations
+            prev_roll = madgwick_filter.roll;
+            prev_pitch = madgwick_filter.pitch;
+            prev_yaw = madgwick_filter.yaw;
+
             // Motor mixer
             // Optimized DSP matrix multiplication
             dspm_mult_f32(&mixer_matrix[0], &ctrl_inputs[0], &motor_outputs[0], 4, 4, 1);
-
-            // Clamp float outputs to valid throttle range and convert to 16bit unsigned int
+            // Scale and offset motors to min/max throttle
+            scale_and_offset_motors(&motor_outputs[0], ((float)(DSHOT_THROTTLE_MIN)) / 2000.0f, 1.0f);
 
             // check if armed
             motor_armed_flag = reciever_switch(commands.ch5, 1500);
@@ -116,17 +157,11 @@ void control_loop()
                 // Send actual throttle once armed
                 else
                 {
-                    // uint16_t throttle_setting = clamp_throttle_limit((loop_count + 78000) / 800, throttle_limit);
-                    // throttles[0] = throttle_setting;
-                    // throttles[1] = throttle_setting;
-                    // throttles[2] = throttle_setting;
-                    // throttles[3] = throttle_setting;
-
-                    // Log throttle values for debugging
-                    // if (loop_count % 5000 == 0)
-                    // {
-                    //     printf("Throttle: %d\n", throttle_setting);
-                    // }
+                    for (int i = 0; i < NUM_MOTORS; i++)
+                    {
+                        //   motor_outputs[i] = (motor_outputs[i] > 1.0f) ? 1.0f : motor_outputs[i];
+                        throttles[i] = (uint16_t)(motor_outputs[i] * 2000.0f); // Scale to DSHOT range
+                    }
                 }
 
                 send_dshot_frame(&throttles, TELEMETRY);
@@ -148,7 +183,7 @@ void control_loop()
             // printf("Control loop took %llu us... \n", (end - start));
 
             // Send telemetry at 1Hz (Can go up to 10Hz if needed)
-            if (loop_count % 80 == 0)
+            if (loop_count % 400 == 0)
             {
                 // Add data to telemetry queue
                 telemetry_data_t new_telem_data = {
@@ -161,6 +196,9 @@ void control_loop()
                     .xl_x = xl_x,
                     .xl_y = xl_y,
                     .xl_z = xl_z,
+                    .m_x = m_x,
+                    .m_y = m_y,
+                    .m_z = m_z,
                     .thr_1 = throttles[0],
                     .thr_2 = throttles[1],
                     .thr_3 = throttles[2],
@@ -176,7 +214,10 @@ void control_loop()
                     .ch5 = commands.ch5,
                     .ch6 = commands.ch6,
                     .ch7 = commands.ch7,
-                    .ch8 = commands.ch8};
+                    .ch8 = commands.ch8,
+                    .est_roll = madgwick_filter.roll,
+                    .est_pitch = madgwick_filter.pitch,
+                    .est_yaw = madgwick_filter.yaw};
 
                 if (xQueueSend(telemetry_tx_queue, &new_telem_data, (TickType_t)0) != pdTRUE)
                 {

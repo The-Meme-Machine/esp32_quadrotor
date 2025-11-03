@@ -13,8 +13,6 @@
 #define IMU_WHOAMI 0b01101100
 #define MAG_WHOAMI 0b00111101
 
-#define FIXED_POINT 1000 // 3 decimal places preserved
-
 // Below definitions are for 1.66kHz, 4g, 500dps
 // Sensor noise (for Kalman Filter)
 #define RATE_NOISE 3.8 // mdps / sqrt(Hz)
@@ -29,6 +27,10 @@
 // #define RATE_SENS 35.0 // mdps / LSB (1000dps)
 #define RATE_SENS 70.0   // mdps / LSB (2000dps)
 #define ACCEL_SENS 0.122 // mg / LSB
+
+// Magnetometer sensitivity
+#define MAG_SENS 6842 // gauss / LSB (+/-4gauss)
+#define MAG_ZERO 1    // +/- gauss
 
 typedef struct
 {

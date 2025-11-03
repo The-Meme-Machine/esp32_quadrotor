@@ -114,6 +114,9 @@ void websocket_telemetry_task(void *pvParameters)
             cJSON_AddNumberToObject(root, "xl_x", data.xl_x);
             cJSON_AddNumberToObject(root, "xl_y", data.xl_y);
             cJSON_AddNumberToObject(root, "xl_z", data.xl_z);
+            cJSON_AddNumberToObject(root, "m_x", data.m_x);
+            cJSON_AddNumberToObject(root, "m_y", data.m_y);
+            cJSON_AddNumberToObject(root, "m_z", data.m_z);
             cJSON_AddNumberToObject(root, "thr_1", data.thr_1);
             cJSON_AddNumberToObject(root, "thr_2", data.thr_2);
             cJSON_AddNumberToObject(root, "thr_3", data.thr_3);
@@ -130,6 +133,9 @@ void websocket_telemetry_task(void *pvParameters)
             cJSON_AddNumberToObject(root, "ch6", data.ch6);
             cJSON_AddNumberToObject(root, "ch7", data.ch7);
             cJSON_AddNumberToObject(root, "ch8", data.ch8);
+            cJSON_AddNumberToObject(root, "est_roll", data.est_roll);
+            cJSON_AddNumberToObject(root, "est_pitch", data.est_pitch);
+            cJSON_AddNumberToObject(root, "est_yaw", data.est_yaw);
 
             // 4. Convert JSON object to a string
             char *json_string = cJSON_PrintUnformatted(root);
